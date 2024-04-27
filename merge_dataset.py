@@ -10,7 +10,7 @@ def map_labels(sample):
         sample["label"] = 'general physics'
     # general mathmetics
     elif label == 'mathematics' or label == 'statistics':
-        sample["label"] = 'general mathmetics'
+        sample["label"] = 'general mathematics'
     return sample
 
 def merge_dataset(dataset):
