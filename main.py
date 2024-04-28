@@ -12,7 +12,6 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 print("Loading dataset knowledgator/Scientific-text-classification")
 dataset = merge_dataset(load_dataset("knowledgator/Scientific-text-classification", split='train'))
-print(dataset[0])
 
 print("Loading tokenizer from openai-community/gpt2-medium")
 tokenizer = AutoTokenizer.from_pretrained("openai-community/gpt2-medium", use_fast=True)
@@ -20,8 +19,6 @@ if tokenizer.pad_token_id is None: tokenizer.pad_token = tokenizer.eos_token
 
 print("Loading model from openai-community/gpt2-medium")
 model = AutoModelForCausalLM.from_pretrained("openai-community/gpt2-medium").to(device)
-
-label_counts = Counter(dataset['label'][:50000]) # Past 50k samples, the dataset labels have only 1 sample each.
 
 def getResponse(history, model, tokenizer):
     input_ids = tokenizer.encode(history, return_tensors='pt').to(device)
