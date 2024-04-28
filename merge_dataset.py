@@ -1,18 +1,3 @@
-
-def map_labels(sample):
-    label = sample["label"]
-
-    # theoretical physics
-    if label == 'high energy physics theory' or label == 'quantum physics':
-        sample["label"] = 'theoretical physics'
-    # general physics
-    elif label == 'condensed matter' or label == 'physics' or label == 'astrophysics':
-        sample["label"] = 'general physics'
-    # general mathmetics
-    elif label == 'mathematics' or label == 'statistics':
-        sample["label"] = 'general mathematics'
-    return sample
-
 def merge_dataset(dataset):
     # find labels which is useful
     label_dic = {}
@@ -37,7 +22,19 @@ def merge_dataset(dataset):
             continue
     dataset = dataset.select(selected_idx)
 
-
+    def map_labels(sample):
+        label = sample["label"]
+        # theoretical physics
+        if label == 'high energy physics theory' or label == 'quantum physics' or label == 'high energy physics phenomenology':
+            sample["label"] = 'theoretical physics'
+        # general physics
+        elif label == 'condensed matter' or label == 'physics' or label == 'astrophysics':
+            sample["label"] = 'general physics'
+        # general mathematics
+        elif label == 'mathematics' or label == 'statistics':
+            sample["label"] = 'general mathematics'
+        return sample
+    
     # merging labels
     dataset = dataset.map(map_labels)
     
