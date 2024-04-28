@@ -1,4 +1,4 @@
-from transformers import AutoModelForCausalLM, AutoTokenizer, AdamW
+from transformers import RobertaModel, AutoTokenizer, AdamW
 import numpy as np
 import torch 
 from torch import nn
@@ -51,7 +51,6 @@ def train_one(model, tokenizer, batched_train_set, answer_tenser, optimizer, los
         inputs = tokenizer(data, return_tensors='pt', truncation=True, padding=True, max_length=500).to(device)
         optimizer.zero_grad()
         outputs = model(**inputs)
-        print(outputs.logits.shape)
         pred = torch.clamp(outputs.pooler_output, min=1e-6, max=1)
         # print(answer_tenser[index])
         loss = loss_func(pred, answer_tenser[index].to(device))
@@ -103,18 +102,14 @@ def train_classifier(model, tokenizer, train_set, batch = 1, epochs = 5, lr = 1e
     plt.savefig('loss curve of classifier.png')
 
 if __name__ == '__main__':
-    model = AutoModelForCausalLM.from_pretrained("openai-community/gpt2-medium").to(device)
-    tokenizer = AutoTokenizer.from_pretrained("openai-community/gpt2-medium", use_fast=True)
+    model = RobertaModel.from_pretrained('distilroberta-base')
+    tokenizer = AutoTokenizer.from_pretrained("distilbert/distilroberta-base", use_fast=True)
 
     dataset = merge_dataset(load_dataset("knowledgator/Scientific-text-classification", split='train'))
     dataset = dataset.select(range(len(dataset)//4))
 
     # change the last layer to create 5 output
-    model.lm_head = nn.Linear(1024, 5)
-    # for module in model.modules():
-    #     print(module)
+    model.pooler.dense = nn.Linear(768, 5)
 
-    # print(model)
-    # [1, 227, 50258]
 
-    train_classifier(model, tokenizer, dataset)
+    train_classifier(model, tokenizer, dataset, batch = 1, epochs = 5, lr = 1e-5, weight_decay = 0.01)
