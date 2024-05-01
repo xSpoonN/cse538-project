@@ -1,4 +1,4 @@
-from transformers import RobertaModel, AutoTokenizer, AdamW, AutoModel, AutoConfig
+from transformers import RobertaForSequenceClassification, AutoTokenizer, AdamW, AutoModel, AutoConfig
 import numpy as np
 import torch 
 from torch import nn
@@ -51,7 +51,8 @@ def train_one(model, tokenizer, batched_train_set, answer_tenser, optimizer, los
         inputs = tokenizer(data, return_tensors='pt', truncation=True, padding=True, max_length=500).to(device)
         optimizer.zero_grad()
         outputs = model(**inputs)
-        pred = torch.clamp(outputs.pooler_output, min=1e-6, max=1)
+        # print(outputs.logits)
+        pred = torch.clamp(outputs.logits, min=1e-6, max=1)
         # print(pred.shape)
         # print(answer_tenser[index])
         loss = loss_func(pred, answer_tenser[index].to(device))
@@ -64,7 +65,6 @@ def train_one(model, tokenizer, batched_train_set, answer_tenser, optimizer, los
     return np.mean(losses)
 
 def train_classifier(model, tokenizer, train_set, batch = 1, epochs = 5, lr = 1e-5, weight_decay = 0.01):
-    print(model.pooler.dense )
     tokenizer.add_special_tokens({'pad_token': '[PAD]'})
     model.resize_token_embeddings(len(tokenizer))
 
@@ -93,49 +93,63 @@ def train_classifier(model, tokenizer, train_set, batch = 1, epochs = 5, lr = 1e
     for epoch in tqdm(range(epochs), desc = "Progress of train_classifier"):
         loss = train_one(model, tokenizer, batched_train_set, bacthed_answers, optimizer, loss_func)
         loss_values.append(loss)
+    
     model.save_pretrained("classifier")
     # # Generate an image of the loss curves
-    # plt.clf()
-    # plt.plot(range(epochs), loss_values)
-    # plt.xlabel('Epochs')
-    # plt.ylabel('Loss')
-    # plt.title('Training Loss Curve')
-    # plt.savefig('loss curve of classifier.png')
+    plt.clf()
+    plt.plot(range(epochs), loss_values)
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.title('Training Loss Curve')
+    plt.savefig('loss curve of classifier.png')
 
 
 if __name__ == '__main__':
-    model = AutoModel.from_pretrained('distilroberta-base')
+    model = RobertaForSequenceClassification.from_pretrained('distilroberta-base')
     tokenizer = AutoTokenizer.from_pretrained("distilbert/distilroberta-base", use_fast=True)
-
     dataset = merge_dataset(load_dataset("knowledgator/Scientific-text-classification", split='train'))
     dataset = dataset.select(range(len(dataset)//4))
 
-    # change the last layer to create 5 output
-    model.pooler.dense = nn.Linear(768, 5)
-    # print(model.pooler)
-    train_classifier(model, tokenizer, dataset, batch = 2, epochs = 5, lr = 1e-5, weight_decay = 0.01)
+    # # # change the last layer to create 5 output
+    model.classifier.out_proj = nn.Linear(768, 5)
+    # # train_classifier(model, tokenizer, dataset, batch = 2, epochs = 1, lr = 1e-6, weight_decay = 0.005)
+    train_classifier(model, tokenizer, dataset, batch = 2, epochs = 10, lr = 5e-7, weight_decay = 0.001)
 
 
-    # TODO: Having a problem with loading pretrained model. 
-    # model = AutoModel.from_pretrained("classifier", num_labels=5, ignore_mismatched_sizes=True)  
+    model = RobertaForSequenceClassification.from_pretrained("classifier", num_labels = 5)  
+    # print(model)
     # model.pooler.dense = nn.Linear(768, 5)
 
-    # tokenizer = AutoTokenizer.from_pretrained("distilbert/distilroberta-base", use_fast=True)
-    # tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+    tokenizer = AutoTokenizer.from_pretrained("distilbert/distilroberta-base", use_fast=True)
+    tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+
+    # For testing performance
     dataset = merge_dataset(load_dataset("knowledgator/Scientific-text-classification", split='train'))
     dataset = dataset.select(range(len(dataset)//4,len(dataset)))
 
+
     model.eval().to(device)
-    true_num = 0
-    false_num = 0
+    true_num = {'general mathematics':0,
+        'computer science':0,
+        'general physics':0,
+        'electrical engineering and systems science':0,
+        'theoretical physics':0
+        }
+    false_num = {'general mathematics':0,
+        'computer science':0,
+        'general physics':0,
+        'electrical engineering and systems science':0,
+        'theoretical physics':0
+        }
 
     for data in dataset:
         inputs = tokenizer(data['text'], return_tensors='pt', truncation=True, padding=True, max_length=500).to(device)
         outputs = model(**inputs)
-        pred = convert_classes_to_label(torch.clamp(outputs.pooler_output, min=1e-6, max=1).tolist()[0])
+        pred = convert_classes_to_label(torch.clamp(outputs.logits, min=1e-6, max=1).tolist()[0])
         if pred == data['label']:
-            true_num += 1
+            true_num[data['label']] += 1
         else:
-            false_num += 1
-    print("Total num: ", true_num + false_num)
-    print("True %:", (true_num / (true_num + false_num)) * 100)
+            false_num[data['label']] += 1
+
+    for key in true_num.keys():
+        print("True % of ", key , ":", (true_num[key] / (true_num[key] + false_num[key])) * 100)
