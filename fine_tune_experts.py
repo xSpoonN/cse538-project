@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import time
 from torch.utils.data import DataLoader
 from datasets import load_dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -17,22 +18,23 @@ def fine_tune_expert(dataset, tokenizer, model, device, epochs=1, batch_size=4, 
     for epoch in range(epochs):
         model.train()
         train_loss = 0.0
+        start_time = time.time()
         for i, batch in enumerate(train_loader):
             optimizer.zero_grad()
-            inputs = [f"{text}" for text in zip(batch['text'])]
-            model_inputs = tokenizer(inputs, max_length=512, truncation=True, padding='max_length', return_tensors='pt').to(device)["input_ids"]
+            inputs = tokenizer(batch['text'], max_length=512, truncation=True, padding='max_length', return_tensors='pt').to(device)["input_ids"]
             with torch.cuda.amp.autocast():
-                outputs = model(model_inputs, labels=model_inputs)
+                outputs = model(inputs, labels=inputs)
                 loss = outputs.loss
             scaler.scale(loss).backward()
             scaler.step(optimizer)
             scaler.update()
             train_loss += loss.item()
-            if i % 20 == 0:
-                print(f"Epoch {epoch+1}/{epochs}, Batch {i+1}/{len(train_loader)}, Train Loss: {train_loss/(i+1):.4f}")
-        
-        print(f"Epoch {epoch+1}/{epochs}, Train Loss: {train_loss/len(train_loader):.4f}")
-
+            if i % 1 == 0:
+                elapsed_time = time.time() - start_time
+                avg_time = elapsed_time / (i+1)
+                remaining_time = avg_time * (len(train_loader) - i)
+                print(f"\rEpoch {epoch+1}/{epochs}, Batch {i+1}/{len(train_loader)}, Train Loss: {train_loss/(i+1):.4f}, ETA: {remaining_time:.2f}s", end="")
+    print(f"\rTrained model in {time.time() - start_time:.2f}s over {epochs} epoch{'s' if epochs != 1 else ''}. Final loss: {train_loss/len(train_loader):.4f}")
     return model
 
 if __name__ == '__main__':
@@ -47,11 +49,11 @@ if __name__ == '__main__':
     tokenizer = AutoTokenizer.from_pretrained("openai-community/gpt2", use_fast=True)
     if tokenizer.pad_token_id is None: tokenizer.pad_token = tokenizer.eos_token
 
-    model_CS = AutoModelForCausalLM.from_pretrained("fine_tuned_dialogue") # Load the model checkpoint
-    model_Math = AutoModelForCausalLM.from_pretrained("fine_tuned_dialogue")
-    model_TPhysics = AutoModelForCausalLM.from_pretrained("fine_tuned_dialogue")
-    model_Physics = AutoModelForCausalLM.from_pretrained("fine_tuned_dialogue")
-    model_EE = AutoModelForCausalLM.from_pretrained("fine_tuned_dialogue")
+    model_CS = AutoModelForCausalLM.from_pretrained("openai-community/gpt2") # Load the model checkpoint
+    model_Math = AutoModelForCausalLM.from_pretrained("openai-community/gpt2")
+    model_TPhysics = AutoModelForCausalLM.from_pretrained("openai-community/gpt2")
+    model_Physics = AutoModelForCausalLM.from_pretrained("openai-community/gpt2")
+    model_EE = AutoModelForCausalLM.from_pretrained("openai-community/gpt2")
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     for dataset, model, name in zip([dataset_CS, dataset_Math, dataset_TPhysics, dataset_Physics, dataset_EE], 
                               [model_CS, model_Math, model_TPhysics, model_Physics, model_EE],
