@@ -34,7 +34,7 @@ def fine_tune_expert(dataset, tokenizer, model, device, epochs=1, batch_size=4, 
                 avg_time = elapsed_time / (i+1)
                 remaining_time = avg_time * (len(train_loader) - i)
                 print(f"\rEpoch {epoch+1}/{epochs}, Batch {i+1}/{len(train_loader)}, Train Loss: {train_loss/(i+1):.4f}, ETA: {remaining_time:.2f}s", end="")
-    print(f"\rTrained model in {time.time() - start_time:.2f}s over {epochs} epoch{'s' if epochs != 1 else ''}. Final loss: {train_loss/len(train_loader):.4f}")
+    print(f"\rTrained model in {time.time() - start_time:.2f}s over {epochs} epoch{'s' if epochs != 1 else ''}. Final loss: {train_loss/len(train_loader):.4f}              ")
     return model
 
 if __name__ == '__main__':
