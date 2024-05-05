@@ -55,7 +55,7 @@ def getResponse(history, tokenizer):
     input_ids = tokenizer.encode(history, return_tensors='pt', truncation=True).to(device)
     attention_mask = input_ids.ne(tokenizer.pad_token_id).float().to(device)
     model = experts[pred]
-    #model = AutoModelForCausalLM.from_pretrained("openai-community/gpt2") # For testing against the base GPT2 Model.
+    # model = AutoModelForCausalLM.from_pretrained("mastermind").to(device) # For testing against the base GPT2 Model.
     output = model.generate(input_ids,
                             pad_token_id=tokenizer.eos_token_id,
                             attention_mask=attention_mask, 
@@ -67,10 +67,12 @@ def getResponse(history, tokenizer):
     response = tokenizer.decode(output[0], skip_special_tokens=True)
 
     # Post-process the response
+    response = response.strip() # Remove leading and trailing whitespaces
     response = response[len(history):] # Remove the duplicated conversation
     if response.find('User:') != -1: response = response[:response.find('User:')] # Truncate the response to remove the duplication of the conversation
     elif response.find('Bot:') != -1: response = response[:response.find('Bot:')]
-    response = ".".join(list(OrderedDict.fromkeys(response.split(".")))) # Remove duplicate sentences
+    response = ". ".join(list(OrderedDict.fromkeys(response.split(". ")))) # Remove duplicate sentences
+    response = response[:response.rfind(".")+1] # Delete incomplete sentences
 
     print("Classified as:", pred)
     return response

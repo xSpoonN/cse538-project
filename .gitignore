@@ -8,3 +8,6 @@ fine_tuned_dialogue/
 classifier/
 backup/
 *.png
+mastermind/config.json
+mastermind/generation_config.json
+mastermind/model.safetensors
