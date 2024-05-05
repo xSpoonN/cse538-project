@@ -55,7 +55,7 @@ def getResponse(history, tokenizer):
     input_ids = tokenizer.encode(history, return_tensors='pt', truncation=True).to(device)
     attention_mask = input_ids.ne(tokenizer.pad_token_id).float().to(device)
     model = experts[pred]
-    # model = AutoModelForCausalLM.from_pretrained("mastermind").to(device) # For testing against the base GPT2 Model.
+    model = AutoModelForCausalLM.from_pretrained("mastermind").to(device) # For testing against the base GPT2 Model.
     output = model.generate(input_ids,
                             pad_token_id=tokenizer.eos_token_id,
                             attention_mask=attention_mask, 
