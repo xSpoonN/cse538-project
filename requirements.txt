@@ -1,0 +1,5 @@
+datasets==2.18.0
+torch==2.2.0+cu118
+transformers==4.39.2
+sentence-transformers==2.7.0
+numpy==1.26.4

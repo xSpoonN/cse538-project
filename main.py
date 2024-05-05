@@ -5,35 +5,9 @@ from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_sc
 import matplotlib.pyplot as plt
 from transformers import AutoModelForCausalLM, AutoTokenizer, AutoModelForSequenceClassification
 from collections import OrderedDict
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-print("\r[. . . .] Loading tokenizer from openai-community/gpt2-medium ", end='')
-tokenizer = AutoTokenizer.from_pretrained("openai-community/gpt2-medium", use_fast=True, padding_side='left')
-if tokenizer.pad_token_id is None: tokenizer.pad_token = tokenizer.eos_token
-
-print("\r[✔ . . .] Loading tokenizer from distilbert/distilroberta-base", end='')
-classTokenizer = AutoTokenizer.from_pretrained("distilbert/distilroberta-base", use_fast=True)
-classTokenizer.add_special_tokens({'pad_token': '[PAD]'})
-
-print("\r[✔ ✔ . .] Loading classifier from checkpoint                  ", end='')
-classifier = AutoModelForSequenceClassification.from_pretrained("classifier", num_labels = 5).to(device)
-
-print("\r[✔ ✔ ✔ .] Loading experts from checkpoints                    ", end='')
-experts = {
-    "computer science": AutoModelForCausalLM.from_pretrained("expert_CS").to(device),
-    "electrical engineering and systems science": AutoModelForCausalLM.from_pretrained("expert_EE").to(device),
-    "general physics": AutoModelForCausalLM.from_pretrained("expert_GP").to(device),
-    "theoretical physics": AutoModelForCausalLM.from_pretrained("expert_TP").to(device),
-    "general mathematics": AutoModelForCausalLM.from_pretrained("expert_GM").to(device)
-}
-class_list = [
-    'general mathematics',
-    'computer science',
-    'general physics',
-    'electrical engineering and systems science',
-    'theoretical physics'
-]
-print("\r[✔ ✔ ✔ ✔] Loaded all models                                   \n")
+from rag import vectorize_text, get_closest_text
+from sentence_transformers import SentenceTransformer
+import pickle
 
 def convert_classes_to_label(classes):
     idx = 0
@@ -44,7 +18,7 @@ def convert_classes_to_label(classes):
             idx = i
     return class_list[idx]
 
-def getResponse(history, tokenizer):
+def getResponse(history: str, tokenizer, topEntries) -> str:
     # Classify the topic of the conversation
     inputs = classTokenizer(history, return_tensors='pt', truncation=True, padding=True, max_length=500).to(device)
     classifier.eval()
@@ -52,10 +26,12 @@ def getResponse(history, tokenizer):
     pred = convert_classes_to_label(torch.clamp(outputs.logits, min=1e-6, max=1).tolist()[0])
 
     # Generate a response based on the topic
-    input_ids = tokenizer.encode(history, return_tensors='pt', truncation=True).to(device)
+    input = history if topEntries is None else ' '.join([entry[:150] for entry in topEntries]) + '\n' + history
+    # print("Input: ", input, "\n=====")
+    input_ids = tokenizer.encode(input, return_tensors='pt', truncation=True).to(device)
     attention_mask = input_ids.ne(tokenizer.pad_token_id).float().to(device)
     model = experts[pred]
-    model = AutoModelForCausalLM.from_pretrained("mastermind").to(device) # For testing against the base GPT2 Model.
+    # model = AutoModelForCausalLM.from_pretrained("mastermind").to(device) # For testing against the base GPT2 Model.
     output = model.generate(input_ids,
                             pad_token_id=tokenizer.eos_token_id,
                             attention_mask=attention_mask, 
@@ -69,6 +45,7 @@ def getResponse(history, tokenizer):
     # Post-process the response
     response = response.strip() # Remove leading and trailing whitespaces
     response = response[len(history):] # Remove the duplicated conversation
+    # print("Response: ", response, "\n=====")
     if response.find('User:') != -1: response = response[:response.find('User:')] # Truncate the response to remove the duplication of the conversation
     elif response.find('Bot:') != -1: response = response[:response.find('Bot:')]
     response = ". ".join(list(OrderedDict.fromkeys(response.split(". ")))) # Remove duplicate sentences
@@ -77,20 +54,57 @@ def getResponse(history, tokenizer):
     print("Classified as:", pred)
     return response
 
-conversationHistory = ""
-print("Bot: Hi, how can I help you today?")
-while True:
-    userInput = input("\nYou: ")
-    if userInput == "exit": break
-    conversationHistory += f"User: {userInput}\nBot: "
-    response = getResponse(conversationHistory, tokenizer)
+if __name__ == '__main__':
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    # Print the response word by word
-    print("\nBot: ", end='', flush=True)
-    for word in response.split():
-        print(word, end=' ', flush=True)
-        sleep(0.05)
-    print()
+    print("\r[. . . . . .] Loading tokenizer from openai-community/gpt2-medium ", end='')
+    tokenizer = AutoTokenizer.from_pretrained("openai-community/gpt2-medium", use_fast=True, padding_side='left')
+    if tokenizer.pad_token_id is None: tokenizer.pad_token = tokenizer.eos_token
 
-    conversationHistory += f"{response}\n"
-    conversationHistory = " ".join(conversationHistory.split()[-400:]) # Keep the last 400 words of the conversation
+    print("\r[✔ . . . . .] Loading tokenizer from distilbert/distilroberta-base", end='')
+    classTokenizer = AutoTokenizer.from_pretrained("distilbert/distilroberta-base", use_fast=True)
+    classTokenizer.add_special_tokens({'pad_token': '[PAD]'})
+
+    print("\r[✔ ✔ . . . .] Loading classifier from checkpoint                  ", end='')
+    classifier = AutoModelForSequenceClassification.from_pretrained("classifier", num_labels = 5).to(device)
+
+    print("\r[✔ ✔ ✔ . . .] Loading experts from checkpoints                    ", end='')
+    experts = {
+        "computer science": AutoModelForCausalLM.from_pretrained("expert_CS").to(device),
+        "electrical engineering and systems science": AutoModelForCausalLM.from_pretrained("expert_EE").to(device),
+        "general physics": AutoModelForCausalLM.from_pretrained("expert_GP").to(device),
+        "theoretical physics": AutoModelForCausalLM.from_pretrained("expert_TP").to(device),
+        "general mathematics": AutoModelForCausalLM.from_pretrained("expert_GM").to(device)
+    }
+    class_list = [ 'general mathematics', 'computer science', 'general physics', 'electrical engineering and systems science', 'theoretical physics' ]
+
+    print("\r[✔ ✔ ✔ ✔ . .] Loading data embeddings                             ", end='')
+    with open('embeddings.pkl', 'rb') as f:
+        data_dict = pickle.load(f)
+        data_entries = list(data_dict.keys())
+        data_embeddings = np.array(list(data_dict.values()))
+
+    print("\r[✔ ✔ ✔ ✔ ✔ .] Loading sentence vectorizer                         ", end='')
+    vectorizer = SentenceTransformer('multi-qa-MiniLM-L6-cos-v1')
+
+    print("\r[✔ ✔ ✔ ✔ ✔ ✔] Loaded all models                                   \n")
+
+    print("Bot: Hi, how can I help you today?")
+    conversationHistory = ""
+    while True:
+        userInput = input("\nYou: ")
+        if userInput == "exit": break
+        topEntries = get_closest_text(userInput, data_embeddings, data_entries, vectorizer)
+        conversationHistory += f"User: {userInput}\nBot: "
+        # response = getResponse(conversationHistory, tokenizer, topEntries) # Enable RAG
+        response = getResponse(conversationHistory, tokenizer, None) # Disable RAG
+
+        # Print the response word by word
+        print("\nBot: ", end='', flush=True)
+        for word in response.split():
+            print(word, end=' ', flush=True)
+            sleep(0.05)
+        print()
+
+        conversationHistory += f"{response}\n"
+        conversationHistory = " ".join(conversationHistory.split()[-400:]) # Keep the last 400 words of the conversation

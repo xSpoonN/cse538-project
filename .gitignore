@@ -11,3 +11,4 @@ backup/
 mastermind/config.json
 mastermind/generation_config.json
 mastermind/model.safetensors
+embeddings.pkl
