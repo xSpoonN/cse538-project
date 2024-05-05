@@ -1,3 +1,17 @@
+# This file trains the mastermind model on all entries in the dataset.
+# Team members:
+# - Kevin Tao
+# - Haneul Lee
+
+# Description:
+# All entries in the dataset are used to train the mastermind model, from a GPT2 base model.
+# The model is trained as a causal language model in a self-supervised manner.
+
+# System specifications during training:
+# Windows 11 Home 23H2 OS Build 22631.3447
+# AMD Ryzen 7 5700 @ 3.7 GHz, 32 GB RAM DDR4 @ 3200 MHz CL16
+# NVIDIA GeForce RTX 4060 Ti 8 GB GDDR6 DX12
+
 import torch
 import numpy as np
 import time

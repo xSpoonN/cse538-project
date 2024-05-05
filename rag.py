@@ -1,3 +1,18 @@
+# File to generate vector embeddings for each entry in the dataset
+# Team members:
+# - Kevin Tao
+# - Haneul Lee
+
+# Description:
+# multi-qa-MiniLM-L6-cos-v1 model is used to generate embeddings for each entry in the dataset.
+# The embeddings are then normalized and saved to a file for later use in the chatbot.
+# This file also contains functions used by the chatbot to vectorize text and find the k closest text entries.
+
+# System specifications during generation:
+# Windows 11 Home 23H2 OS Build 22631.3447
+# AMD Ryzen 7 5700 @ 3.7 GHz, 32 GB RAM DDR4 @ 3200 MHz CL16
+# NVIDIA GeForce RTX 4060 Ti 8 GB GDDR6 DX12
+
 from merge_dataset import merge_dataset
 from datasets import load_dataset
 from sentence_transformers import SentenceTransformer

@@ -1,3 +1,17 @@
+# Function to merge similar dataset labels
+# Team members:
+# - Kevin Tao
+# - Haneul Lee
+
+# Description:
+# Dataset labels are mapped to a more general category to reduce the number of classes in the dataset.
+# Also, only the first 50k samples are selected, due to issues with the dataset content after this point.
+
+# System specifications during testing:
+# Windows 11 Home 23H2 OS Build 22631.3447
+# AMD Ryzen 7 5700 @ 3.7 GHz, 32 GB RAM DDR4 @ 3200 MHz CL16
+# NVIDIA GeForce RTX 4060 Ti 8 GB GDDR6 DX12
+
 def merge_dataset(dataset):
     labelMap = {
         'high energy physics theory': 'theoretical physics',

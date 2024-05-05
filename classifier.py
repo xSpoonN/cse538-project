@@ -1,3 +1,15 @@
+# This file trains the classifier model on the full dataset.
+# Team members:
+# - Kevin Tao
+# - Haneul Lee
+
+# Description:
+# All entries in the dataset are used to train the classifier model, from a RoBERTa base model
+
+# System specifications during training:
+# 
+
+
 from transformers import RobertaForSequenceClassification, AutoTokenizer, AdamW, AutoModel, AutoConfig
 import numpy as np
 import torch 

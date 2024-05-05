@@ -1,3 +1,38 @@
+# Main file for the chatbot
+# Team members:
+# - Kevin Tao
+# - Haneul Lee
+
+# Description:
+# A classifier is used to determine the topic of the conversation, and the appropriate expert model is used to generate a response.
+# The classifier is trained on the full dataset, while the expert models are trained on the filtered datasets.
+# The classifier is trained as a sequence classification model, while the expert models are trained as causal language models in a self-supervised manner.
+# Input is appended to an existing conversation history, with 'User:' and 'Bot:' prefixes to differentiate between user input and bot responses.
+# If the conversation length exceeds 400 words, the conversation history is truncated to the last 400 words to prevent max model input length errors.
+# Responses are post-processed to remove duplicated conversations, incomplete sentences, and duplicate sentences.
+
+# For the RAG model, uncomment the line in getResponse() and comment the line below it.
+# RAG is done by encoding the user input and comparing it with the dataset embeddings using cosine similarity.
+# The top k closest text entries are then concatenated and used to provide context to the system.
+
+# NLP class concepts used:
+# - [I. Tokenization] Tokenizing the input text and generating tokens for the model.
+# - [I. Classification] Classifying the topic of the conversation using a sequence classification model.
+# - [I. Gradient Descent] Optimizing the model using the AdamW optimizer.
+# - [II. Vector Semantics] Generating embeddings for the dataset entries and user input.
+# - [III. Transformers (autoencoding)] Training the classifier as a RoBERTa based sequence classification model.
+# - [III. Transformers (autoregressive)] Training the expert models as causal language models.
+# - [III. Fine-tuning] Fine-tuning the classifier and expert models on the filtered datasets.
+# - [III. Zero/few-shot Generation] Generating responses using the models based on the conversation history, initially nothing.
+# - [III. Beam Search] Applying beam search to generate multiple responses and select the best one.
+# - [IV. Dialog] Creating a conversation history and generating responses based on the history.
+# - [IV. Question Answering] Generating responses based on the user input, conversation history, and using RAG to retrieve context.
+
+# System specifications during testing:
+# Windows 11 Home 23H2 OS Build 22631.3447
+# AMD Ryzen 7 5700 @ 3.7 GHz, 32 GB RAM DDR4 @ 3200 MHz CL16
+# NVIDIA GeForce RTX 4060 Ti 8 GB GDDR6 DX12
+
 from time import sleep
 import torch
 import numpy as np
@@ -27,7 +62,6 @@ def getResponse(history: str, tokenizer, topEntries) -> str:
 
     # Generate a response based on the topic
     input = history if topEntries is None else ' '.join([entry[:150] for entry in topEntries]) + '\n' + history
-    # print("Input: ", input, "\n=====")
     input_ids = tokenizer.encode(input, return_tensors='pt', truncation=True).to(device)
     attention_mask = input_ids.ne(tokenizer.pad_token_id).float().to(device)
     model = experts[pred]
@@ -45,16 +79,16 @@ def getResponse(history: str, tokenizer, topEntries) -> str:
     # Post-process the response
     response = response.strip() # Remove leading and trailing whitespaces
     response = response[len(history):] # Remove the duplicated conversation
-    # print("Response: ", response, "\n=====")
     if response.find('User:') != -1: response = response[:response.find('User:')] # Truncate the response to remove the duplication of the conversation
     elif response.find('Bot:') != -1: response = response[:response.find('Bot:')]
     response = ". ".join(list(OrderedDict.fromkeys(response.split(". ")))) # Remove duplicate sentences
     response = response[:response.rfind(".")+1] # Delete incomplete sentences
 
-    print("Classified as:", pred)
+    # print("Classified as:", pred)
     return response
 
 if __name__ == '__main__':
+    # Initialize the models
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     print("\r[. . . . . .] Loading tokenizer from openai-community/gpt2-medium ", end='')
@@ -89,6 +123,7 @@ if __name__ == '__main__':
 
     print("\r[✔ ✔ ✔ ✔ ✔ ✔] Loaded all models                                   \n")
 
+    # Start the conversation
     print("Bot: Hi, how can I help you today?")
     conversationHistory = ""
     while True:
