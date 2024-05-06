@@ -25,6 +25,7 @@ from merge_dataset import merge_dataset
 from datasets import load_dataset
 import time
 from tqdm import tqdm
+import random
 
 
 def convert_classes_to_label(classes):
@@ -132,5 +133,8 @@ if __name__ == '__main__':
 
     # Start analysys
     dataset = merge_dataset(load_dataset("knowledgator/Scientific-text-classification", split='train'))
-    # dataset = dataset.select(range(4859,50000))
+    # randonly choose 10000 dataset
+    list = range(50000)
+    picked_index = random.sample(list, 10000)
+    dataset = dataset.select(picked_index)
     get_perplexity(dataset)
