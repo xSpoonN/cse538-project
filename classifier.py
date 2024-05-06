@@ -6,8 +6,10 @@
 # Description:
 # All entries in the dataset are used to train the classifier model, from a RoBERTa base model
 
-# System specifications during training:
-# 
+# System specifications during testing:
+# Windows 11 Home 23H2 OS Build 22631.3447
+# 13th Gen Intel(R) Core(TM) i7-13700H   2.40 GHz
+# NVIDIA GeForce RTX 4050 Laptop GPU
 
 
 from transformers import RobertaForSequenceClassification, AutoTokenizer, AdamW, AutoModel, AutoConfig
