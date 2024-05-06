@@ -154,4 +154,5 @@ if __name__ == '__main__':
 
     # Start analysys
     dataset = merge_dataset(load_dataset("knowledgator/Scientific-text-classification", split='train'))
+    # dataset = dataset.select(range(4859,50000))
     get_perplexity(dataset)
