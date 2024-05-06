@@ -39,16 +39,16 @@ def convert_classes_to_label(classes):
 
 def getResponse(history: str, tokenizer, topEntries) -> str:
     # Classify the topic of the conversation
-    inputs = classTokenizer(history, return_tensors='pt', truncation=True, padding=True, max_length=500).to(device)
-    classifier.eval()
-    outputs = classifier(**inputs)
-    pred = convert_classes_to_label(torch.clamp(outputs.logits, min=1e-6, max=1).tolist()[0])
+    # inputs = classTokenizer(history, return_tensors='pt', truncation=True, padding=True, max_length=500).to(device)
+    # classifier.eval()
+    # outputs = classifier(**inputs)
+    # pred = convert_classes_to_label(torch.clamp(outputs.logits, min=1e-6, max=1).tolist()[0])
 
     # Generate a response based on the topic
     input = history if topEntries is None else ' '.join([entry[:150] for entry in topEntries]) + '\n' + history
     input_ids = tokenizer.encode(input, return_tensors='pt', truncation=True, max_length=512, padding='max_length').to(device)
     attention_mask = input_ids.ne(tokenizer.pad_token_id).float().to(device)
-    model = experts[pred]
+    model = experts["basegpt2"]
     # model = AutoModelForCausalLM.from_pretrained("mastermind").to(device) # For testing against the base GPT2 Model.
     output = model.generate(input_ids,
                             labels=input_ids,
@@ -83,7 +83,8 @@ def get_perplexity(dataset):
     perplexity_sum = 0
     for data in tqdm(dataset, desc = "Progress of get_perplexity"):
         start_time = time.time() * 1000.0 # get cur time in ms
-        response, perplexity = getResponse(data['text'], tokenizer, None) # Disable RAG
+        # topEntries = get_closest_text(data['text'], data_embeddings, data_entries, vectorizer)
+        response, perplexity = getResponse(data['text'], tokenizer, None) # Enable RAG
         perplexity_sum += perplexity
         response_time_sum += (time.time() * 1000.0) - start_time
 
@@ -116,7 +117,9 @@ if __name__ == '__main__':
         "electrical engineering and systems science": AutoModelForCausalLM.from_pretrained("expert_EE").to(device),
         "general physics": AutoModelForCausalLM.from_pretrained("expert_GP").to(device),
         "theoretical physics": AutoModelForCausalLM.from_pretrained("expert_TP").to(device),
-        "general mathematics": AutoModelForCausalLM.from_pretrained("expert_GM").to(device)
+        "general mathematics": AutoModelForCausalLM.from_pretrained("expert_GM").to(device),
+        "basegpt2": AutoModelForCausalLM.from_pretrained("openai-community/gpt2").to(device),
+        "mastermind": AutoModelForCausalLM.from_pretrained("mastermind").to(device)
     }
     class_list = [ 'general mathematics', 'computer science', 'general physics', 'electrical engineering and systems science', 'theoretical physics' ]
 
